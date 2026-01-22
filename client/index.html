@@ -3,14 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <title>O Último Civil</title>
+
   <link rel="stylesheet" href="style.css" />
+
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
   <div id="ui">
-    <input id="roomInput" placeholder="Código da sala" />
-    <button onclick="joinRoom()">Entrar</button>
+    <input
+      id="room"
+      placeholder="Código da sala"
+    />
+    <button onclick="join()">Entrar</button>
+
     <div id="status"></div>
   </div>
 

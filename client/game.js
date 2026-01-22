@@ -1,12 +1,12 @@
 const socket = io();
 
-let gameState = null;
 let roomId = null;
+let gameState = null;
 let phaserGame = null;
 let sceneRef = null;
 
 /* ======================
-   CONEXÃO / SALA
+   ENTRAR NA SALA
 ====================== */
 
 function join() {
@@ -18,8 +18,23 @@ function join() {
   socket.emit("joinRoom", roomId);
 }
 
+/* ======================
+   FEEDBACK DE ESPERA
+====================== */
+
+socket.on("waitingPlayers", count => {
+  const status = document.getElementById("status");
+  status.innerText =
+    `Aguardando jogadores (${count}/3)`;
+});
+
+/* ======================
+   INÍCIO / ATUALIZAÇÃO
+====================== */
+
 socket.on("stateUpdate", state => {
   gameState = state;
+  document.getElementById("status").innerText = "";
 
   if (!phaserGame) {
     startGame();
@@ -29,7 +44,7 @@ socket.on("stateUpdate", state => {
 });
 
 /* ======================
-   INICIALIZA PHASER
+   PHASER
 ====================== */
 
 function startGame() {
@@ -53,23 +68,17 @@ function startGame() {
 
 function pawnColor(pawn) {
   switch (pawn.class) {
-    case "Inocente":
-      return 0xffffff;
-    case "Policial":
-      return 0x3b82f6;
-    case "Assassino":
-      return 0xef4444;
-    case "Medico":
-      return 0x22c55e;
-    case "Detetive":
-      return 0xfacc15;
-    default:
-      return 0xaaaaaa;
+    case "Inocente": return 0xffffff;
+    case "Policial": return 0x3b82f6;
+    case "Assassino": return 0xef4444;
+    case "Medico": return 0x22c55e;
+    case "Detetive": return 0xfacc15;
+    default: return 0xaaaaaa;
   }
 }
 
 /* ======================
-   DESENHO PRINCIPAL
+   DESENHO
 ====================== */
 
 function draw() {
@@ -82,24 +91,20 @@ function draw() {
   drawPawns();
 }
 
-/* ======================
-   CABEÇALHO / STATUS
-====================== */
-
 function drawHeader() {
-  const currentPlayer =
+  const current =
     gameState.players[gameState.currentTurn];
 
   sceneRef.add.text(
     20,
     10,
-    `Turno do jogador: ${currentPlayer.id.substring(0, 5)}`,
-    { fontSize: "16px", fill: "#ffffff" }
+    `Turno: ${current.id.slice(0, 5)}`,
+    { fontSize: "16px", fill: "#fff" }
   );
 
   if (gameState.finished) {
     sceneRef.add.text(
-      400,
+      450,
       10,
       "FIM DE JOGO",
       { fontSize: "20px", fill: "#f87171" }
@@ -107,18 +112,14 @@ function drawHeader() {
   }
 }
 
-/* ======================
-   TABULEIRO (40 CASAS)
-====================== */
-
 function drawBoard() {
   const startX = 40;
   const y = 200;
-  const spacing = 25;
+  const space = 25;
 
   for (let i = 0; i < 40; i++) {
     sceneRef.add.rectangle(
-      startX + i * spacing,
+      startX + i * space,
       y,
       22,
       22,
@@ -127,33 +128,28 @@ function drawBoard() {
   }
 }
 
-/* ======================
-   PEÕES / INTERAÇÃO
-====================== */
-
 function drawPawns() {
   const startX = 40;
   const y = 200;
-  const spacing = 25;
+  const space = 25;
 
-  gameState.players.forEach((player, playerIndex) => {
+  gameState.players.forEach((player, pi) => {
     if (player.eliminated) return;
 
     player.pawns.forEach(pawn => {
       if (!pawn.alive) return;
 
-      const x =
-        startX + pawn.position * spacing;
-      const yOffset = y - 30 - playerIndex * 18;
+      const x = startX + pawn.position * space;
+      const yOff = y - 30 - pi * 18;
 
       const circle = sceneRef.add.circle(
         x,
-        yOffset,
+        yOff,
         9,
         pawnColor(pawn)
       );
 
-      // Destaque se for o turno do jogador dono do peão
+      // interação só no turno correto
       if (
         gameState.players[gameState.currentTurn].id ===
         player.id
@@ -169,11 +165,10 @@ function drawPawns() {
         });
       }
 
-      // Indicadores visuais
       if (pawn.revealed) {
         sceneRef.add.text(
-          x - 5,
-          yOffset - 22,
+          x - 4,
+          yOff - 20,
           "!",
           { fontSize: "14px", fill: "#ff0000" }
         );
@@ -182,7 +177,7 @@ function drawPawns() {
       if (pawn.jailed) {
         sceneRef.add.rectangle(
           x,
-          yOffset,
+          yOff,
           20,
           20,
           0x000000,
@@ -193,9 +188,4 @@ function drawPawns() {
   });
 }
 
-/* ======================
-   EXPÕE join() PARA HTML
-====================== */
-
 window.join = join;
-
