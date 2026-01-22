@@ -9,20 +9,11 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-/* ======================
-   SERVE O FRONTEND
-====================== */
-
 app.use(express.static("../client"));
 
-/* ======================
-   SOCKET.IO
-====================== */
-
 io.on("connection", socket => {
-  console.log("Jogador conectado:", socket.id);
+  console.log("Conectado:", socket.id);
 
-  /* ===== ENTRAR NA SALA ===== */
   socket.on("joinRoom", roomId => {
     if (!roomId) return;
 
@@ -33,22 +24,28 @@ io.on("connection", socket => {
     }
 
     socket.join(roomId);
-    console.log(`Jogador ${socket.id} entrou na sala ${roomId}`);
 
-    // Inicia o jogo quando 3 jogadores entrarem
-    if (rooms[roomId].players.length === 3) {
-      rooms[roomId].started = true;
-      rooms[roomId].gameState =
-        logic.createInitialGameState(rooms[roomId].players);
+    const room = rooms[roomId];
+
+    // feedback de espera
+    io.to(roomId).emit(
+      "waitingPlayers",
+      room.players.length
+    );
+
+    // inicia jogo com 3 jogadores
+    if (room.players.length === 3) {
+      room.started = true;
+      room.gameState =
+        logic.createInitialGameState(room.players);
 
       io.to(roomId).emit(
         "stateUpdate",
-        rooms[roomId].gameState
+        room.gameState
       );
     }
   });
 
-  /* ===== JOGAR TURNO ===== */
   socket.on("playTurn", ({ roomId, pawnId }) => {
     const room = rooms[roomId];
     if (!room || !room.started) return;
@@ -62,7 +59,6 @@ io.on("connection", socket => {
     const pawn = player.pawns.find(p => p.id === pawnId);
     if (!pawn) return;
 
-    // Se estiver preso ou perder turno
     if (pawn.jailed || pawn.skipTurn) {
       pawn.skipTurn = false;
       logic.nextTurn(state);
@@ -70,13 +66,10 @@ io.on("connection", socket => {
       return;
     }
 
-    /* ===== ROLAGEM DE DADO ===== */
     const dice = logic.rollDice();
     logic.movePawn(pawn, dice);
 
-    /* ===== ENCONTROS ===== */
     const sameCell = [];
-
     state.players.forEach(pl =>
       pl.pawns.forEach(p => {
         if (
@@ -93,28 +86,19 @@ io.on("connection", socket => {
       logic.resolveEncounters(sameCell, player);
     }
 
-    /* ===== LIMPEZA / SUBSTITUIÇÃO ===== */
     logic.cleanup(state);
-
-    /* ===== REGRA O ÚLTIMO CIVIL ===== */
     logic.checkLastCivilRule(state);
-
-    /* ===== PRÓXIMO TURNO ===== */
     logic.nextTurn(state);
 
     io.to(roomId).emit("stateUpdate", state);
   });
 
-  /* ===== DESCONECTAR ===== */
   socket.on("disconnect", () => {
-    console.log("Jogador desconectado:", socket.id);
+    console.log("Desconectado:", socket.id);
   });
 });
 
-/* ======================
-   INICIAR SERVIDOR
-====================== */
-
 server.listen(3000, () => {
-  console.log("Servidor rodando em http://localhost:3000");
+  console.log("Servidor rodando na porta 3000");
 });
+
